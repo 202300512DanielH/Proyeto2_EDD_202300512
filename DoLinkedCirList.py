@@ -68,6 +68,7 @@ class DoublyCircularLinkedList:
                 break
         return False
 
+
     def generate_graphviz(self, filename="circular_list"):
         """
         Genera una representación de la lista en formato Graphviz.
@@ -84,7 +85,7 @@ class DoublyCircularLinkedList:
         current = self.head
         while True:
             node_label = f"DPI: {current.client.dpi}\nNombres: {current.client.nombres}"
-            dot.node(str(id(current)), node_label)
+            dot.node(str(id(current)), node_label, style='filled', fillcolor='turquoise')
 
             if current.next:
                 dot.edge(str(id(current)), str(id(current.next)), constraint='true')
@@ -111,15 +112,3 @@ class DoublyCircularLinkedList:
             if current == self.head:
                 break
 
-
-"""
-if __name__ == "__main__":
-    lista = DoublyCircularLinkedList()
-    lista.add(Client("123456789", "Juan Pérez"))
-    lista.add(Client("987654321", "María López"))
-    lista.add(Client("456789123", "Carlos Pérez"))
-    lista.add(Client("789123456", "Ana López"))
-
-    lista.display()
-  lista.generate_graphviz()
-"""

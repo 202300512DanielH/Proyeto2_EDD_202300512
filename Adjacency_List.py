@@ -70,18 +70,82 @@ class AdjacencyList:
             new_node.append(ruta)
             temp.next = new_node
 
+    def modify(self, origen, destino, nuevo_tiempo):
+        """
+        Modifica el tiempo de una ruta existente.
+
+        :param origen: Nodo origen de la ruta.
+        :param destino: Nodo destino de la ruta.
+        :param nuevo_tiempo: Nuevo tiempo de la ruta (int o float).
+        """
+        temp = self.head
+        while temp:
+            if temp.origen == origen:
+                adj_temp = temp.adjacency_list
+                while adj_temp:
+                    if adj_temp.ruta.destino == destino:
+                        if nuevo_tiempo <= 0:
+                            raise ValueError("El tiempo de la ruta debe ser un número positivo.")
+                        adj_temp.ruta.tiempo = nuevo_tiempo
+                        print(f"Ruta modificada: {origen} -> {destino}, Nuevo tiempo: {nuevo_tiempo} minutos")
+                        return
+                    adj_temp = adj_temp.next
+            temp = temp.next
+
+        raise ValueError(f"No se encontró la ruta desde {origen} hasta {destino}.")
+
+    def delete(self, origen, destino):
+        """
+        Elimina una ruta de la lista de adyacencia.
+
+        :param origen: Nodo origen de la ruta.
+        :param destino: Nodo destino de la ruta.
+        """
+        temp = self.head
+        while temp:
+            if temp.origen == origen:
+                prev = None
+                adj_temp = temp.adjacency_list
+                while adj_temp:
+                    if adj_temp.ruta.destino == destino:
+                        if prev:
+                            prev.next = adj_temp.next
+                        else:
+                            temp.adjacency_list = adj_temp.next
+                        print(f"Ruta eliminada: {origen} -> {destino}")
+                        return
+                    prev = adj_temp
+                    adj_temp = adj_temp.next
+            temp = temp.next
+
+        raise ValueError(f"No se encontró la ruta desde {origen} hasta {destino}.")
+
+    def show_information(self, origen=None):
+        """
+        Muestra información sobre todas las rutas o las rutas específicas de un origen.
+
+        :param origen: Nodo origen para filtrar (opcional).
+        """
+        temp = self.head
+        found = False
+        while temp:
+            if origen is None or temp.origen == origen:
+                found = True
+                print(f"Origen: {temp.origen}")
+                adj_temp = temp.adjacency_list
+                while adj_temp:
+                    print(f"  -> Destino: {adj_temp.ruta.destino}, Tiempo: {adj_temp.ruta.tiempo} minutos")
+                    adj_temp = adj_temp.next
+            temp = temp.next
+
+        if not found and origen:
+            print(f"No se encontraron rutas desde el origen: {origen}")
+
     def print_list(self):
         """
         Imprime la lista de adyacencia.
         """
-        temp = self.head
-        while temp:
-            print(f"Origen: {temp.origen}")
-            adj_temp = temp.adjacency_list
-            while adj_temp:
-                print(f"  -> Destino: {adj_temp.ruta.destino}, Tiempo: {adj_temp.ruta.tiempo} minutos")
-                adj_temp = adj_temp.next
-            temp = temp.next
+        self.show_information()
 
     def generate_graphviz(self, filename="adjacency_list"):
         """
@@ -94,13 +158,14 @@ class AdjacencyList:
 
         temp = self.head
         while temp:
+            # Establecer color turquesa y estilo para los nodos
             node_label = f"{temp.origen}"
-            dot.node(temp.origen, node_label)
+            dot.node(temp.origen, node_label, style="filled", fillcolor="turquoise")
 
             adj_temp = temp.adjacency_list
             while adj_temp:
                 dest_label = f"{adj_temp.ruta.destino}\n{adj_temp.ruta.tiempo} min"
-                dot.node(adj_temp.ruta.destino, dest_label)
+                dot.node(adj_temp.ruta.destino, dest_label, style="filled", fillcolor="turquoise")
                 dot.edge(temp.origen, adj_temp.ruta.destino, label=f"{adj_temp.ruta.tiempo} min")
                 adj_temp = adj_temp.next
 
@@ -109,93 +174,4 @@ class AdjacencyList:
         dot.render(filename, format="png", cleanup=True)
 
 
-# Ejemplo de uso
-if __name__ == "__main__":
-    from Route import Ruta  # Importamos la clase Ruta
 
-    adj_list = AdjacencyList()
-
-    # Creando rutas
-    # Creando rutas
-    ruta1 = Ruta("Quetzaltenango", "Huehuetenango", 90)
-    ruta2 = Ruta("Quetzaltenango", "San Marcos", 75)
-    ruta3 = Ruta("Quetzaltenango", "Retalhuleu", 85)
-    ruta4 = Ruta("Huehuetenango", "San Marcos", 60)
-    ruta5 = Ruta("Huehuetenango", "Alta Verapaz", 80)
-    ruta6 = Ruta("San Marcos", "Retalhuleu", 50)
-    ruta7 = Ruta("San Marcos", "Mazatenango", 70)
-    ruta8 = Ruta("Retalhuleu", "Mazatenango", 40)
-    ruta9 = Ruta("Retalhuleu", "Escuintla", 60)
-    ruta10 = Ruta("Mazatenango", "Escuintla", 35)
-    ruta11 = Ruta("Escuintla", "Guatemala", 50)
-    ruta12 = Ruta("Escuintla", "Santa Rosa", 45)
-    ruta13 = Ruta("Guatemala", "Chiquimula", 80)
-    ruta14 = Ruta("Guatemala", "Sacatepequez", 25)
-    ruta15 = Ruta("Guatemala", "Antigua", 30)
-    ruta16 = Ruta("Chiquimula", "Zacapa", 45)
-    ruta17 = Ruta("Chiquimula", "Jalapa", 50)
-    ruta18 = Ruta("Zacapa", "Izabal", 70)
-    ruta19 = Ruta("Zacapa", "Alta Verapaz", 65)
-    ruta20 = Ruta("Izabal", "Puerto Barrios", 30)
-    ruta21 = Ruta("Izabal", "Livingston", 50)
-    ruta22 = Ruta("Puerto Barrios", "Livingston", 25)
-    ruta23 = Ruta("Puerto Barrios", "El Estor", 40)
-    ruta24 = Ruta("El Estor", "Izabal", 35)
-    ruta25 = Ruta("El Estor", "Alta Verapaz", 100)
-    ruta26 = Ruta("Alta Verapaz", "Baja Verapaz", 60)
-    ruta27 = Ruta("Alta Verapaz", "Huehuetenango", 80)
-    ruta28 = Ruta("Baja Verapaz", "El Progreso", 50)
-    ruta29 = Ruta("Baja Verapaz", "Jalapa", 55)
-    ruta30 = Ruta("El Progreso", "Jalapa", 45)
-    ruta31 = Ruta("El Progreso", "Jutiapa", 60)
-    ruta32 = Ruta("Jalapa", "Jutiapa", 55)
-    ruta33 = Ruta("Jutiapa", "Santa Rosa", 35)
-    ruta34 = Ruta("Santa Rosa", "Guatemala", 60)
-    ruta35 = Ruta("Sacatepequez", "Antigua", 20)
-    ruta36 = Ruta("Antigua", "Guatemala", 25)
-    ruta37 = Ruta("Antigua", "Santa Rosa", 50)
-
-    # Insertando en la lista de adyacencia
-    adj_list.insert("Quetzaltenango", ruta1)
-    adj_list.insert("Quetzaltenango", ruta2)
-    adj_list.insert("Quetzaltenango", ruta3)
-    adj_list.insert("Huehuetenango", ruta4)
-    adj_list.insert("Huehuetenango", ruta5)
-    adj_list.insert("San Marcos", ruta6)
-    adj_list.insert("San Marcos", ruta7)
-    adj_list.insert("Retalhuleu", ruta8)
-    adj_list.insert("Retalhuleu", ruta9)
-    adj_list.insert("Mazatenango", ruta10)
-    adj_list.insert("Escuintla", ruta11)
-    adj_list.insert("Escuintla", ruta12)
-    adj_list.insert("Guatemala", ruta13)
-    adj_list.insert("Guatemala", ruta14)
-    adj_list.insert("Guatemala", ruta15)
-    adj_list.insert("Chiquimula", ruta16)
-    adj_list.insert("Chiquimula", ruta17)
-    adj_list.insert("Zacapa", ruta18)
-    adj_list.insert("Zacapa", ruta19)
-    adj_list.insert("Izabal", ruta20)
-    adj_list.insert("Izabal", ruta21)
-    adj_list.insert("Puerto Barrios", ruta22)
-    adj_list.insert("Puerto Barrios", ruta23)
-    adj_list.insert("El Estor", ruta24)
-    adj_list.insert("El Estor", ruta25)
-    adj_list.insert("Alta Verapaz", ruta26)
-    adj_list.insert("Alta Verapaz", ruta27)
-    adj_list.insert("Baja Verapaz", ruta28)
-    adj_list.insert("Baja Verapaz", ruta29)
-    adj_list.insert("El Progreso", ruta30)
-    adj_list.insert("El Progreso", ruta31)
-    adj_list.insert("Jalapa", ruta32)
-    adj_list.insert("Jutiapa", ruta33)
-    adj_list.insert("Santa Rosa", ruta34)
-    adj_list.insert("Sacatepequez", ruta35)
-    adj_list.insert("Antigua", ruta36)
-    adj_list.insert("Antigua", ruta37)
-
-    # Imprimiendo la lista de adyacencia
-    adj_list.print_list()
-
-    # Generando el archivo Graphviz
-    adj_list.generate_graphviz("adjacency_list_graph")

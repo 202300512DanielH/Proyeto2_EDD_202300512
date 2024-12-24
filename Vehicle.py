@@ -17,7 +17,7 @@ class Vehiculo:
         self.placa = placa
         self.marca = marca
         self.modelo = modelo
-        self.precio_por_segundo = precio_por_segundo
+        self.precio = precio_por_segundo
 
     def __str__(self):
         """
