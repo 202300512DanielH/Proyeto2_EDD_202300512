@@ -1595,6 +1595,50 @@ class TripModule(ctk.CTkFrame):
         self.vehicle_tree = vehicle_tree
         self.adjacency_list = adjacency_list
         self.trip_list = trip_list
+        self.active_frame = None
+        self.setup_ui()
+
+    def setup_ui(self):
+        self.title_label = ctk.CTkLabel(self, text="Gestión de Viajes", font=ctk.CTkFont(size=24, weight="bold"))
+        self.title_label.pack(pady=20)
+
+        # Botones de navegación
+        nav_frame = ctk.CTkFrame(self)
+        nav_frame.pack(fill="x", padx=10, pady=10)
+
+        self.create_button = ctk.CTkButton(nav_frame, text="Crear Viaje", command=self.show_create_trip)
+        self.create_button.pack(side="left", padx=10)
+
+        self.view_button = ctk.CTkButton(nav_frame, text="Mostrar Viajes", command=self.show_view_trips)
+        self.view_button.pack(side="left", padx=10)
+
+        self.content_frame = ctk.CTkFrame(self)
+        self.content_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        self.show_create_trip()
+
+    def clear_content_area(self):
+        if self.active_frame:
+            self.active_frame.destroy()
+            self.active_frame = None
+
+    def show_create_trip(self):
+        self.clear_content_area()
+        self.active_frame = CreateTripFrame(self.content_frame, self.client_list, self.vehicle_tree, self.adjacency_list, self.trip_list)
+        self.active_frame.pack(fill="both", expand=True)
+
+    def show_view_trips(self):
+        self.clear_content_area()
+        self.active_frame = ViewTripsFrame(self.content_frame, self.trip_list)
+        self.active_frame.pack(fill="both", expand=True)
+
+class CreateTripFrame(ctk.CTkFrame):
+    def __init__(self, parent, client_list, vehicle_tree, adjacency_list, trip_list, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        self.client_list = client_list
+        self.vehicle_tree = vehicle_tree
+        self.adjacency_list = adjacency_list
+        self.trip_list = trip_list
         self.setup_ui()
 
     def setup_ui(self):
@@ -1633,8 +1677,8 @@ class TripModule(ctk.CTkFrame):
         self.show_trip_button.pack(pady=20)
 
         # Área de resultados para mostrar la estructura del viaje
-        #self.result_text = ctk.CTkTextbox(self, height=200)
-        #self.result_text.pack(fill="both", expand=True, padx=10, pady=10)
+        # self.result_text = ctk.CTkTextbox(self, height=200)
+        # self.result_text.pack(fill="both", expand=True, padx=10, pady=10)
 
     def get_clients(self):
         """Obtiene todos los clientes de la lista circular."""
@@ -1826,6 +1870,52 @@ class TripModule(ctk.CTkFrame):
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo cargar la imagen del gráfico: {e}")
 
+class ViewTripsFrame(ctk.CTkFrame):
+    def __init__(self, parent, trip_list, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        self.trip_list = trip_list
+        self.setup_ui()
+
+    def setup_ui(self):
+        # Título del módulo
+        self.title_label = ctk.CTkLabel(self, text="Lista de Viajes", font=ctk.CTkFont(size=20, weight="bold"))
+        self.title_label.pack(pady=20)
+
+        # Botón para generar y mostrar el gráfico
+        self.show_graph_button = ctk.CTkButton(self, text="Visualizar Lista de Viajes", command=self.show_trip_graph)
+        self.show_graph_button.pack(pady=20)
+
+        # Contenedor para la imagen del gráfico
+        self.image_label = ctk.CTkLabel(self, text="La imagen del gráfico se mostrará aquí.", font=ctk.CTkFont(size=14))
+        self.image_label.pack(fill="both", expand=True, padx=10, pady=10)
+
+    def show_trip_graph(self):
+        """Genera y muestra el gráfico de la lista de viajes."""
+        try:
+            filename = "trip_list_graph"
+            self.trip_list.save_png(filename)  # Generar el gráfico en formato PNG
+            image_path = f"{filename}.png"
+
+            if os.path.exists(image_path):
+                self.display_graph(image_path)
+            else:
+                messagebox.showerror("Error", "No se pudo generar el gráfico de la lista de viajes.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al generar el gráfico: {e}")
+
+    def display_graph(self, image_path):
+        """Muestra el gráfico generado en la interfaz."""
+        try:
+            # Cargar la imagen
+            image = Image.open(image_path)
+            image = image.resize((800, 600), Image.Resampling.LANCZOS)
+            photo = ImageTk.PhotoImage(image)
+
+            # Actualizar el widget con la imagen del gráfico
+            self.image_label.configure(image=photo, text="")
+            self.image_label.image = photo  # Mantener referencia para evitar garbage collection
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo cargar la imagen del gráfico: {e}")
 
 
 
