@@ -1,14 +1,16 @@
 import os
 from PIL  import Image, ImageTk
 import customtkinter as ctk
-from tkinter import messagebox
+from tkinter import messagebox, simpledialog
 from graphviz import Source
 #importaciones para clientes
 from Client import Client
 from DoLinkedCirList import DoublyCircularLinkedList
+from Path import camino
 #importaciones para rutas
 from Route import Ruta
 from Adjacency_List import AdjacencyList
+from Simple_List_Trip import SimpleListTrip
 
 #importacoin para vehiculos
 from Vehicle import Vehiculo
@@ -99,9 +101,10 @@ class MainMenu(ctk.CTk):
 
     def show_trips(self):
         self.clear_content_area()
-        self.active_frame = GenericModule(self.content_area, "Gestión de Viajes")
+        self.active_frame = TripModule(
+            self.content_area, self.client_list, self.vehicles_list, self.routes_list, SimpleListTrip()
+        )
         self.active_frame.pack(fill="both", expand=True)
-
     def show_routes(self):
         self.clear_content_area()
         self.active_frame = RoutesModule(self.content_area, self.routes_list, self)
@@ -1583,6 +1586,246 @@ class MassUploadVehiclesFrame(ctk.CTkFrame):
             self.result_textbox.insert("end", f"{added_count} vehículos agregados correctamente.\n")
         except Exception as e:
             self.result_textbox.insert("end", f"Error al procesar el archivo: {e}\n")
+
+
+class TripModule(ctk.CTkFrame):
+    def __init__(self, parent, client_list, vehicle_tree, adjacency_list, trip_list, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        self.client_list = client_list
+        self.vehicle_tree = vehicle_tree
+        self.adjacency_list = adjacency_list
+        self.trip_list = trip_list
+        self.setup_ui()
+
+    def setup_ui(self):
+        self.title_label = ctk.CTkLabel(self, text="Gestión de Viajes", font=ctk.CTkFont(size=24, weight="bold"))
+        self.title_label.pack(pady=20)
+
+        # Selección de cliente
+        self.client_label = ctk.CTkLabel(self, text="Seleccione Cliente:")
+        self.client_label.pack(pady=5)
+        self.client_combobox = ctk.CTkComboBox(self, values=self.get_clients())
+        self.client_combobox.pack(pady=5)
+
+        # Selección de vehículo
+        self.vehicle_label = ctk.CTkLabel(self, text="Seleccione Vehículo:")
+        self.vehicle_label.pack(pady=5)
+        self.vehicle_combobox = ctk.CTkComboBox(self, values=self.get_vehicles())
+        self.vehicle_combobox.pack(pady=5)
+
+        # Selección de origen y destino
+        self.origin_label = ctk.CTkLabel(self, text="Seleccione Origen:")
+        self.origin_label.pack(pady=5)
+        self.origin_combobox = ctk.CTkComboBox(self, values=self.get_locations())
+        self.origin_combobox.pack(pady=5)
+
+        self.destination_label = ctk.CTkLabel(self, text="Seleccione Destino:")
+        self.destination_label.pack(pady=5)
+        self.destination_combobox = ctk.CTkComboBox(self, values=self.get_locations())
+        self.destination_combobox.pack(pady=5)
+
+        # Botón para crear viaje
+        self.create_trip_button = ctk.CTkButton(self, text="Crear Viaje", command=self.create_trip)
+        self.create_trip_button.pack(pady=20)
+
+        # Botón para mostrar estructura de viaje
+        self.show_trip_button = ctk.CTkButton(self, text="Mostrar Viaje", command=self.show_trip_structure)
+        self.show_trip_button.pack(pady=20)
+
+        # Área de resultados para mostrar la estructura del viaje
+        #self.result_text = ctk.CTkTextbox(self, height=200)
+        #self.result_text.pack(fill="both", expand=True, padx=10, pady=10)
+
+    def get_clients(self):
+        """Obtiene todos los clientes de la lista circular."""
+        clients = []
+        current = self.client_list.head
+        if current:
+            while True:
+                clients.append(f"{current.client.dpi} - {current.client.nombres}")
+                current = current.next
+                if current == self.client_list.head:
+                    break
+        return clients
+
+    def get_vehicles(self):
+        """Obtiene todos los vehículos del árbol B."""
+        vehicles = []
+
+        def traverse(node):
+            if node:
+                for key in node.keys:
+                    vehicles.append(f"{key.placa} - {key.marca}")
+                for child in node.children:
+                    traverse(child)
+
+        traverse(self.vehicle_tree.root)
+        return vehicles
+
+    def get_locations(self):
+        """Obtiene todos los nodos de origen de la lista de adyacencia."""
+        locations = []
+        current = self.adjacency_list.head
+        while current:
+            locations.append(current.origen)
+            current = current.next
+        return locations
+
+    def create_trip(self):
+        """Crea un viaje basado en los datos seleccionados."""
+        cliente = self.client_combobox.get()
+        vehiculo = self.vehicle_combobox.get()
+        origen = self.origin_combobox.get()
+        destino = self.destination_combobox.get()
+
+        if not (cliente and vehiculo and origen and destino):
+            messagebox.showerror("Error", "Por favor, complete todos los campos.")
+            return
+
+        try:
+            # Calcular la ruta más corta
+            paths = self.calculate_shortest_path(origen, destino)
+            if not paths:
+                messagebox.showerror("Error", "No se encontró una ruta válida entre los puntos seleccionados.")
+                return
+
+            # Crear el viaje
+            self.trip_list.insert(origen, destino, "Fecha y Hora", cliente, vehiculo, paths)
+            messagebox.showinfo("Éxito", "Viaje creado exitosamente")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al crear el viaje: {e}")
+
+    def calculate_shortest_path(self, origen, destino):
+        """
+        Calcula la ruta más corta desde origen hasta destino utilizando el algoritmo de Dijkstra.
+        Devuelve una lista de objetos `camino` representando el camino más corto.
+        """
+        # Inicializar estructuras
+        distances = {}
+        previous_nodes = {}
+        unvisited_nodes = set()
+
+        # Población inicial de las estructuras
+        current = self.adjacency_list.head
+        while current:
+            distances[current.origen] = float('inf')  # Distancia infinita inicialmente
+            previous_nodes[current.origen] = None  # Nodo previo para reconstrucción
+            unvisited_nodes.add(current.origen)
+            current = current.next
+
+        # Establecer la distancia inicial del nodo origen
+        distances[origen] = 0
+
+        while unvisited_nodes:
+            # Elegir el nodo con la menor distancia en `distances`
+            current_node = min(
+                unvisited_nodes, key=lambda node: distances[node]
+            )
+            unvisited_nodes.remove(current_node)
+
+            # Si llegamos al destino, terminamos
+            if current_node == destino:
+                break
+
+            # Buscar las rutas salientes del nodo actual
+            current = self.adjacency_list.head
+            while current and current.origen != current_node:
+                current = current.next
+
+            if current:
+                adj_node = current.adjacency_list
+                while adj_node:
+                    neighbor = adj_node.ruta.destino
+                    new_distance = distances[current_node] + adj_node.ruta.tiempo
+                    if new_distance < distances[neighbor]:
+                        distances[neighbor] = new_distance
+                        previous_nodes[neighbor] = current_node
+                    adj_node = adj_node.next
+
+        # Reconstruir el camino más corto
+        path = []
+        current_node = destino
+        while current_node and previous_nodes[current_node] is not None:
+            prev_node = previous_nodes[current_node]
+            current = self.adjacency_list.head
+            while current and current.origen != prev_node:
+                current = current.next
+
+            if current:
+                adj_node = current.adjacency_list
+                while adj_node and adj_node.ruta.destino != current_node:
+                    adj_node = adj_node.next
+
+                if adj_node:
+                    path.insert(0, camino(prev_node, current_node, adj_node.ruta.tiempo))
+
+            current_node = prev_node
+
+        # Si no hay camino encontrado
+        if not path:
+            return []
+
+        return path
+
+    def show_trip_structure(self):
+        """Muestra la estructura de un viaje seleccionado."""
+        trip_id = simpledialog.askinteger("Seleccionar Viaje", "Ingrese el ID del viaje:")
+        if not trip_id:
+            return
+
+        # Buscar el viaje por ID
+        current = self.trip_list.head
+        while current:
+            if current.trip.id == trip_id:
+                self.display_trip_graph(current.trip)
+                return
+            current = current.next
+
+        messagebox.showerror("Error", f"No se encontró un viaje con ID {trip_id}.")
+
+    def display_trip_graph(self, trip):
+        """Genera y muestra el gráfico del camino del viaje, incluyendo el tiempo total."""
+        try:
+            # Calcular el tiempo total del camino
+            total_time = 0
+            camino = trip.camino.head
+            while camino:
+                total_time += camino.path.duracion
+                camino = camino.next
+
+            # Generar el gráfico del camino
+            filename = f"trip_{trip.id}_path"
+            trip.camino.save_png(filename)  # Genera el archivo PNG
+            image_path = f"{filename}.png"
+
+            if os.path.exists(image_path):
+                # Mostrar el tiempo total antes del gráfico
+                messagebox.showinfo("Tiempo Total", f"El tiempo total del viaje es: {total_time} minutos.")
+                self.display_graph(image_path)
+            else:
+                messagebox.showerror("Error", "No se pudo generar el gráfico del camino.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al generar el gráfico del camino: {e}")
+
+    def display_graph(self, image_path):
+        """Muestra el gráfico generado en la interfaz."""
+        try:
+            # Cargar la imagen
+            image = Image.open(image_path)
+            image = image.resize((600, 400), Image.Resampling.LANCZOS)
+            photo = ImageTk.PhotoImage(image)
+
+            # Crear o actualizar un widget para mostrar la imagen
+            if hasattr(self, "graph_label"):
+                self.graph_label.configure(image=photo)
+                self.graph_label.image = photo  # Mantener referencia para evitar garbage collection
+            else:
+                self.graph_label = ctk.CTkLabel(self, image=photo)
+                self.graph_label.pack(pady=20)
+                self.graph_label.image = photo
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo cargar la imagen del gráfico: {e}")
+
 
 
 
