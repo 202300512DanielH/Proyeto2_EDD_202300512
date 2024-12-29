@@ -59,6 +59,7 @@ class MainMenu(ctk.CTk):
         self.client_list = DoublyCircularLinkedList()
         self.routes_list = AdjacencyList()
         self.vehicles_list = BTree(5)
+        self.trips_list = SimpleListTrip()
 
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
@@ -102,7 +103,7 @@ class MainMenu(ctk.CTk):
     def show_trips(self):
         self.clear_content_area()
         self.active_frame = TripModule(
-            self.content_area, self.client_list, self.vehicles_list, self.routes_list, SimpleListTrip()
+            self.content_area, self.client_list, self.vehicles_list, self.routes_list, self.trips_list
         )
         self.active_frame.pack(fill="both", expand=True)
     def show_routes(self):
@@ -112,7 +113,7 @@ class MainMenu(ctk.CTk):
 
     def show_reports(self):
         self.clear_content_area()
-        self.active_frame = GenericModule(self.content_area, "Generación de Reportes")
+        self.active_frame = ReportsModule(self.content_area, self.trips_list)
         self.active_frame.pack(fill="both", expand=True)
 
 
@@ -1918,7 +1919,186 @@ class ViewTripsFrame(ctk.CTkFrame):
             messagebox.showerror("Error", f"No se pudo cargar la imagen del gráfico: {e}")
 
 
+#Modulo de reportes
+class ReportsModule(ctk.CTkFrame):
+    def __init__(self, parent, trip_list, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        self.trip_list = trip_list
+        self.active_frame = None
+        self.setup_ui()
 
+    def setup_ui(self):
+        self.title_label = ctk.CTkLabel(self, text="Reportes", font=ctk.CTkFont(size=24, weight="bold"))
+        self.title_label.pack(pady=20)
+
+        nav_frame = ctk.CTkFrame(self)
+        nav_frame.pack(fill="x", padx=10, pady=10)
+
+        self.long_button = ctk.CTkButton(nav_frame, text="Top 5 Viajes más largos", command=self.show_longest_trips_report)
+        self.long_button.pack(side="left", padx=10)
+
+        self.cheap_button = ctk.CTkButton(nav_frame, text="Top 5 Viajes más caros", command=self.show_most_expensive_trips_report)
+        self.cheap_button.pack(side="left", padx=10)
+
+        self.clients_button = ctk.CTkButton(nav_frame, text="Top 5 Clientes con más viajes", command=self.show_top_clients_report)
+        self.clients_button.pack(side="left", padx=10)
+
+        self.vehicles_button = ctk.CTkButton(nav_frame, text="Top 5 Vehículos con más viajes", command=self.show_top_vehicles_report)
+        self.vehicles_button.pack(side="left", padx=10)
+
+        # Área para mostrar los resultados
+        self.results_label = ctk.CTkLabel(self, text="Resultados del Reporte", font=ctk.CTkFont(size=18))
+        self.results_label.pack(pady=10)
+
+        self.results_text = ctk.CTkTextbox(self, height=400)
+        self.results_text.pack(fill="both", expand=True, padx=10, pady=10)
+
+        self.show_longest_trips_report()
+
+    def clear_content_area(self):
+        if self.active_frame:
+            self.active_frame.destroy()
+            self.active_frame = None
+
+    def show_longest_trips_report(self):
+        """Genera el reporte de los 5 viajes más largos por número de destinos."""
+        self.results_text.delete("1.0", "end")
+
+        # Lista para almacenar los viajes con su cantidad de destinos
+        trips_with_destinations = []
+
+        # Recorrer la lista de viajes
+        current = self.trip_list.head
+        while current:
+            trip = current.trip
+            num_destinations = 0
+
+            # Contar el número de destinos en el camino
+            camino = trip.camino.head
+            while camino:
+                num_destinations += 1
+                camino = camino.next
+
+            # Añadir el viaje y el número de destinos a la lista
+            trips_with_destinations.append((trip, num_destinations))
+            current = current.next
+
+        # Ordenar los viajes por el número de destinos en orden descendente
+        trips_with_destinations.sort(key=lambda x: x[1], reverse=True)
+
+        # Tomar los 5 primeros viajes
+        top_trips = trips_with_destinations[:5]
+
+        # Mostrar los resultados en el área de texto
+        self.results_text.insert("end", "Top 5 Viajes Más Largos por Número de Destinos:\n")
+        self.results_text.insert("end", "-" * 50 + "\n")
+        for i, (trip, num_destinations) in enumerate(top_trips, start=1):
+            self.results_text.insert(
+                "end",
+                f"{i}. ID: {trip.id}, Cliente: {trip.cliente}, Vehículo: {trip.vehiculo}, Destinos: {num_destinations}\n"
+            )
+            self.results_text.insert("end", f"Origen: {trip.lugar_origen}, Destino: {trip.lugar_destino}\n")
+            self.results_text.insert("end", "-" * 50 + "\n")
+
+    def show_most_expensive_trips_report(self):
+        """Genera el reporte de los 5 viajes más caros por tiempo total."""
+        self.results_text.delete("1.0", "end")
+
+        # Lista para almacenar los viajes con su tiempo total
+        trips_with_time = []
+
+        # Recorrer la lista de viajes
+        current = self.trip_list.head
+        while current:
+            trip = current.trip
+            total_time = 0
+
+            # Sumar el tiempo total del camino
+            camino = trip.camino.head
+            while camino:
+                total_time += camino.path.duracion
+                camino = camino.next
+
+            # Añadir el viaje y su tiempo total a la lista
+            trips_with_time.append((trip, total_time))
+            current = current.next
+
+        # Ordenar los viajes por el tiempo total en orden descendente
+        trips_with_time.sort(key=lambda x: x[1], reverse=True)
+
+        # Tomar los 5 primeros viajes
+        top_trips = trips_with_time[:5]
+
+        # Mostrar los resultados en el área de texto
+        self.results_text.insert("end", "Top 5 Viajes Más Caros por Tiempo Total:\n")
+        self.results_text.insert("end", "-" * 50 + "\n")
+        for i, (trip, total_time) in enumerate(top_trips, start=1):
+            self.results_text.insert(
+                "end",
+                f"{i}. ID: {trip.id}, Cliente: {trip.cliente}, Vehículo: {trip.vehiculo}, Tiempo Total: {total_time} min\n"
+            )
+            self.results_text.insert("end", f"Origen: {trip.lugar_origen}, Destino: {trip.lugar_destino}\n")
+            self.results_text.insert("end", "-" * 50 + "\n")
+
+    def show_top_clients_report(self):
+        """Genera el reporte de los 5 clientes con más viajes."""
+        self.results_text.delete("1.0", "end")
+
+        # Diccionario para contar los viajes por cliente
+        client_trip_counts = {}
+
+        # Recorrer la lista de viajes
+        current = self.trip_list.head
+        while current:
+            trip = current.trip
+            if trip.cliente in client_trip_counts:
+                client_trip_counts[trip.cliente] += 1
+            else:
+                client_trip_counts[trip.cliente] = 1
+            current = current.next
+
+        # Ordenar los clientes por la cantidad de viajes en orden descendente
+        sorted_clients = sorted(client_trip_counts.items(), key=lambda x: x[1], reverse=True)
+
+        # Tomar los 5 clientes con más viajes
+        top_clients = sorted_clients[:5]
+
+        # Mostrar los resultados en el área de texto
+        self.results_text.insert("end", "Top 5 Clientes con Más Viajes:\n")
+        self.results_text.insert("end", "-" * 50 + "\n")
+        for i, (client, count) in enumerate(top_clients, start=1):
+            self.results_text.insert("end", f"{i}. Cliente: {client}, Viajes: {count}\n")
+            self.results_text.insert("end", "-" * 50 + "\n")
+
+    def show_top_vehicles_report(self):
+        """Genera el reporte de los 5 vehículos con más viajes."""
+        self.results_text.delete("1.0", "end")
+
+        # Diccionario para contar los viajes por vehículo
+        vehicle_trip_counts = {}
+
+        # Recorrer la lista de viajes
+        current = self.trip_list.head
+        while current:
+            trip = current.trip
+            if trip.vehiculo in vehicle_trip_counts:
+                vehicle_trip_counts[trip.vehiculo] += 1
+            else:
+                vehicle_trip_counts[trip.vehiculo] = 1
+            current = current.next
+
+        # Ordenar los vehículos por la cantidad de viajes en orden descendente
+        sorted_vehicles = sorted(vehicle_trip_counts.items(), key=lambda x: x[1], reverse=True)
+
+        # Tomar los 5 vehículos con más viajes
+        top_vehicles = sorted_vehicles[:5]
+
+        # Mostrar los resultados en el área de texto
+        self.results_text.insert("end", "Top 5 Vehículos con Más Viajes:\n")
+        self.results_text.insert("end", "-" * 50 + "\n")
+        for i, (vehicle, count) in enumerate(top_vehicles, start=1):
+            self.results_text.insert("end", f"{i}. Vehículo: {vehicle}, Viajes: {count}\n")
+            self.results_text.insert("end", "-" * 50 + "\n")
 class GenericModule(ctk.CTkFrame):
     def __init__(self, parent, module_name, *args, **kwargs):
         super().__init__(parent, *args, **kwargs)
@@ -1928,6 +2108,7 @@ class GenericModule(ctk.CTkFrame):
 
         self.info_label = ctk.CTkLabel(self, text=f"Este es el módulo de {module_name}.", font=ctk.CTkFont(size=16))
         self.info_label.pack(pady=20)
+
 
 
 if __name__ == "__main__":

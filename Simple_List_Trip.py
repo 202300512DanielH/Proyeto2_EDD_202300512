@@ -79,3 +79,53 @@ class SimpleListTrip:
         graph = graphviz.Source(dot_str)
         graph.format = 'png'
         graph.render(filename, cleanup=True)
+
+    def get_longest_trips(self, n=5):
+        sorted_trips = SimpleListTrip()
+        temp_trips = SimpleListTrip()
+
+        # Copiar todos los viajes a una lista temporal para evitar modificar la original
+        current = self.head
+        while current is not None:
+            trip = current.trip
+            temp_trips.insert(trip.lugar_origen, trip.lugar_destino, trip.fecha_hora, trip.cliente, trip.vehiculo,
+                              trip.camino)
+            current = current.next
+
+        # Encontrar los viajes más largos iterativamente
+        for _ in range(n):
+            longest_trip = None
+            prev_node = None
+            prev_longest_node = None
+
+            temp_current = temp_trips.head
+            while temp_current is not None:
+                trip = temp_current.trip
+                if longest_trip is None or trip.camino.get_length() > longest_trip.camino.get_length():
+                    longest_trip = trip
+                    prev_longest_node = prev_node
+                prev_node = temp_current
+                temp_current = temp_current.next
+
+            # Insertar el viaje más largo encontrado en la lista ordenada
+            if longest_trip:
+                sorted_trips.insert(
+                    longest_trip.lugar_origen,
+                    longest_trip.lugar_destino,
+                    longest_trip.fecha_hora,
+                    longest_trip.cliente,
+                    longest_trip.vehiculo,
+                    longest_trip.camino
+                )
+
+                # Remover el nodo del viaje más largo de la lista temporal
+                if prev_longest_node is None:  # El nodo más largo es la cabeza
+                    temp_trips.head = temp_trips.head.next
+                else:
+                    prev_longest_node.next = prev_longest_node.next.next
+
+        return sorted_trips
+
+
+
+

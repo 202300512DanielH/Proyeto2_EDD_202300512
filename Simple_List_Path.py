@@ -38,3 +38,11 @@ class SimpleListPath:
         graph = graphviz.Source(dot_str)
         graph.format = 'png'
         graph.render(filename, cleanup=True)
+
+    def get_length(self):
+        current = self.head
+        length = 0
+        while current is not None:
+            length += 1
+            current = current.next
+        return length
